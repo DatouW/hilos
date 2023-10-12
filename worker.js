@@ -1,18 +1,19 @@
-const { parentPort, workerData } = require("worker_threads");
+const { parentPort } = require("worker_threads");
 const {
   elegirClienteAleatorio,
   getDeudas,
   deudasAPagar,
   pagarDeuda,
+  getClientes,
 } = require("./utils");
 
 if (parentPort) {
   parentPort.on("message", async (message) => {
     if (message === "start") {
-      const { cliArr: clientes } = workerData;
+      try {
+        const { data: clientes } = await getClientes();
 
-      while (true) {
-        try {
+        while (true) {
           const id = elegirClienteAleatorio(clientes);
           const deudas = await getDeudas(id);
           if (deudas.length !== 0) {
@@ -30,10 +31,9 @@ if (parentPort) {
               `Cliente ${id} --- no tiene deudas pendientes por pagar.`
             );
           }
-        } catch (error) {
-          console.log(error);
-          parentPort.postMessage("Se produjo un error.");
         }
+      } catch (error) {
+        parentPort.postMessage({ type: "error", error });
       }
     }
   });

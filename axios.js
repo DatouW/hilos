@@ -17,31 +17,40 @@ const retryRequest = async (config) => {
 
 // Interceptores
 axiosInstance.interceptors.response.use(
-  (res) => {
-    return Promise.resolve(res);
-  },
+  (res) => res,
   (error) => {
     const { config } = error;
+
     if (config.retry > 0) {
       config.retry = config.retry - 1;
 
       // la solicitud ha excedido el tiempo de espera
       if (error.code === "ECONNABORTED") {
-        console.log("Request timeout. Retrying...", config.data);
-
-        // Realizar otra solicitud para verificar
         if (config.url === "/pagos") {
-          return retryRequest({
-            ...config,
-            url: "/pagos/confirm",
-          });
+          const obj = JSON.parse(config.data);
+          console.log(
+            `Request timeout. Retrying... ${config.url} 
+                 ===> nro trans. ${obj.idPago}`
+          );
         } else {
-          return retryRequest(config);
+          console.log("Request timeout. Retrying...", config.url);
         }
+      } else if (error.code === "ECONNREFUSED") {
+        console.log("Connection refused. Retrying... ", config.url);
+      } else if (error.code === "ERR_BAD_RESPONSE") {
+        console.log("Internal Server Error. Retrying... ", config.url);
+      } else if (error.code === "ERR_BAD_REQUEST") {
+        console.log("Bad Request. Retrying... ", config.url);
       } else {
-        console.log("Retrying...", config);
-        return retryRequest(config);
+        console.log("Retrying...", error);
       }
+      return retryRequest(config);
+    } else {
+      console.log(
+        "Número máximo de reintentos alcanzado. Error:",
+        error.message
+      );
+      return Promise.reject(error.code);
     }
   }
 );

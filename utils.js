@@ -1,4 +1,5 @@
 const axiosInstance = require("./axios");
+const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 
 const PORCENTAJE = [0.5, 0.8, 1];
@@ -8,14 +9,15 @@ const getRandomInt = (min, max) => {
   return Math.floor(Math.random() * (max - min)) + min;
 };
 
+const generateId = () => {
+  const hash = crypto.createHash("sha256");
+  const idUnico = hash.update(uuidv4()).digest("hex");
+  // console.log(idUnico);
+  return idUnico;
+};
 // Función para obtener la lista de clientes
-const getClientes = async () => {
-  try {
-    const { data } = await axiosInstance.get("/clientes");
-    return data;
-  } catch (error) {
-    console.log(error);
-  }
+const getClientes = () => {
+  return axiosInstance.get("/clientes");
 };
 
 // Función para elegir aleatoriamente un cliente
@@ -30,7 +32,9 @@ const getDeudas = async (idCliente) => {
     const { data } = await axiosInstance.get(`/deudas/${idCliente}`);
     return data;
   } catch (error) {
-    console.error(`Error al obtener las deudas para ${idCliente}: ${error}`);
+    console.error(
+      `Error al obtener las deudas para ${idCliente}: ${handleError(error)}`
+    );
     return [];
   }
 };
@@ -44,7 +48,6 @@ const deudasAPagar = (deudas) => {
     arr.push({
       ...deudas[i],
       monto: (deudas[i].monto * porc).toFixed(2),
-      codVer: uuidv4(),
     });
   }
   return arr;
@@ -53,13 +56,13 @@ const deudasAPagar = (deudas) => {
 const pagarDeuda = async (deuda) => {
   try {
     const { data } = await axiosInstance.post("/pagos", {
-      deuda,
+      ...deuda,
+      idPago: generateId(),
     });
-    // console.log(data);
+
     return data;
   } catch (error) {
-    console.log(error);
-    return error;
+    return handleError(error);
   }
 };
 
@@ -84,6 +87,19 @@ const pagarDeudas = async (deudas) => {
   }
 };
 
+const handleError = (error) => {
+  if (
+    error === "ECONNABORTED" ||
+    error === "ECONNREFUSED" ||
+    error === "ERR_BAD_RESPONSE"
+  ) {
+    return "Por favor, inténtalo nuevamente más tarde. ";
+  } else if (error === "ERR_BAD_REQUEST") {
+    return "Datos incorrectos o faltantes. Por favor, verifica y vuelve a intentarlo.";
+  } else {
+    return error;
+  }
+};
 module.exports = {
   getClientes,
   elegirClienteAleatorio,
